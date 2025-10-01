@@ -12,7 +12,7 @@ import platform
 import socket
 
 # ==== 설정 ====
-SCRIPT_NAME = "ga_protobuf_viewer.py"   # 같은 폴더에 있어야 함
+SCRIPT_NAME = "mitmproxy.py"   # 같은 폴더에 있어야 함
 DEFAULT_PORT = "8080"
 
 # ==== 전역 상태 ====

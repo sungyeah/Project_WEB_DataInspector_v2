@@ -9,7 +9,7 @@ import webbrowser, sys
 
 # 설정: 필요시 수정
 TARGET_PATH_PART = "/a"
-PROTO_MODULE = "Protobuf.app_measurement_pb2"   # protoc로 생성한 모듈명 (예: app_measurement_pb2)
+PROTO_MODULE = "app_measurement_pb2"   # protoc로 생성한 모듈명 (예: app_measurement_pb2)
 PROTO_MESSAGE = "Batch"                # 모듈 내 메시지 클래스명
 
 # SERVER_URL = "http://192.168.1.17:5002/event"   # 수신 서버 URL
