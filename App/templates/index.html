@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" href="/static/assets/faviLogo.png"/>
+    <link rel="apple-touch-icon" href="/static/assets/faviLogo.png"/>
+    <script src="/static/common.js"></script>
+    <script src="/static/convertJson.js"></script>
+    <link rel="stylesheet" href="/static/main.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
+    <title>Data Inspector</title>
+    <script>
+      (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+      new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+      j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+      'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+      })(window,document,'script','dataLayer','GTM-NSKTZSJW');
+    </script>
+  </head>
+  <body>
+    <div class="header">
+      <img class="logoImg" src="/static/assets/logo.png">
+      <div class="contact" onclick="contactUs();">Guide Book</div>
+    </div>
+    <div class="container">
+      <div class="containerHeader">
+        <a href="../../Project_WEB_GATester/source/main.html">
+          <div class="gaTester">
+            <img class="gaImg" src="/static/assets/gaLogo.svg">GA Tester</div>
+        </a>
+        <a href="main.html">
+          <div class="firebase">
+            <img class="firebaseImg" src="/static/assets/firebaseLogo.png">Data Inspector
+          </div>
+        </a>
+        <a href="../../GTMgenerator/Source/main.html">
+          <div class="gtm">
+            <img class="gtmImg" src="/static/assets/gtmLogo.png">GTM Generator</div>
+        </a>
+        <div class="line"></div>
+      </div>
+        <div class="content">
+          <div>
+            <div class="eventListHeader">Fired Events
+              <img class="trashImg" src="/static/assets/trash3.png" onclick="clearList();">
+              <img class="filterImg" src="/static/assets/fliter.png" onclick="openFilter();">
+            </div>
+            <div class="filterBackground"></div>
+            <div class="filterArea">
+              <div class="remove">
+                <div class="filterCaption">Filter</div>
+                <div class="close" onclick="closeFilter();">&times;</div>
+                <ul>
+                  <div class="noEvent">
+                    <div>Event not found...</div>
+                    <div class="loader"></div>
+                  </div>
+                </ul>
+                <div class="modal-title">Highlight parameters</div>
+                <div class="highLight-list"></div>
+                <input id="highlight_parameter" placeholder="Add Parameter" />
+                <div class="filterBtn" onclick="toggle();">Save Filters</div>
+              </div>
+            </div>
+            <div class="eventList" id="eventList">
+              <div class="loadingField">
+                <div class="loading2"></div>
+                <div class="loading"></div>
+              </div>
+            </div>
+          </div>
+          <div class="tableField">
+            <div class="tableDiv">
+              <table>
+                <thead>
+                  <tr>
+                    <th colspan="2"">Event Parameters</th>
+                    <th class="copyTh">
+                      <img class="copyImg" onclick="copyData();">
+                    </th>
+                  </tr>
+                </thead>
+                <tbody id="epTbody">
+                </tbody>
+              </table>
+            </div>
+            <div class="tableDiv">
+              <table>
+                <thead>
+                  <tr>
+                    <th colspan="2" onclick="dropDown(this);">User Properties</th>
+                    <th class="copyTh" onclick="dropDown(this);">
+                      <img id="upImg">
+                    </th>
+                  </tr>
+                </thead>
+                <tbody id="upTbody">
+                </tbody>
+              </table>
+            </div>
+            <div class="tableDiv">
+              <table>
+                <thead>
+                  <tr>
+                    <th colspan="2" onclick="dropDown(this);">Transaction</th>
+                    <th class="copyTh" onclick="dropDown(this);">
+                      <img id="transImg">
+                    </th>
+                  </tr>
+                </thead>
+                <tbody id="transactionTbody">
+                </tbody>
+              </table>
+            </div>
+            <div class="tableDiv">
+              <table>
+                <thead>
+                  <tr>
+                    <th colspan="2" onclick="dropDown(this);">Items</th>
+                    <th class="copyTh" onclick="dropDown(this);">
+                      <img id="itemImg">
+                    </th>
+                  </tr>
+                </thead>
+                <tbody id="itemsTbody">
+                </tbody>
+              </table>
+            </div>
+            <div class="tableDiv">
+              <table>
+                <thead>
+                  <tr>
+                    <th colspan="2" onclick="dropDown(this);">Remain Datas</th>
+                    <th class="copyTh" onclick="dropDown(this);">
+                      <img id="remainImg">
+                    </th>
+                  </tr>
+                </thead>
+                <tbody id="remainTbody" class="remainTbody sum">
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+    </div>
+    <script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
+    <script>
+        const modal_background = document.querySelector('.filterBackground');
+        document.addEventListener('click', (e) => {
+            e.target === modal_background ? closeFilter() : false
+        });
+        setTimeout(changeLoading,10000);
+
+        const socket = io();
+        const params = new URLSearchParams(window.location.search);
+        const token = params.get('tk');
+
+        socket.on("connect", () => {
+            console.log("Socket connected");
+            socket.emit("join", { token: token });
+        });
+
+        socket.on("joined", (data) => {
+            console.log("방 참가 완료:", data.room);
+        });
+
+        socket.on("new_event", (data) => {
+            // 서버에서 보내준 probe_token 확인
+            if (data.probe_token === token) {
+                console.log("succeess:", data);
+                const bundle = data.data.bundle;
+                const platform = data.platform;
+                setData(bundle, platform); // 실제 화면에 출력
+            }
+        });
+    </script>
+  </body>
+</html>
