@@ -1,3 +1,4 @@
+# DataInspector.py
 import tkinter as tk
 from tkinter import scrolledtext, messagebox
 import threading
@@ -12,15 +13,40 @@ import platform
 import socket
 
 # ==== 설정 ====
-SCRIPT_NAME = "mitmproxy.py"   # 같은 폴더에 있어야 함
+SCRIPT_NAME = "mitmproxy_ga.py"   # 같은 폴더에 있어야 함
 DEFAULT_PORT = "8080"
 
 # ==== 전역 상태 ====
 proc = None
 log_q = queue.Queue()
+# ==== 로그 출력 함수 ====
+def append_log(text):
+    """GUI 스레드로 안전하게 로그를 보낼 전역 헬퍼.
+       log_q가 준비되지 않았거나 오류면 파일로 폴백합니다."""
+    try:
+        s = str(text)
+    except Exception:
+        s = repr(text)
+    if not s.endswith("\n"):
+        s += "\n"
+    # try put to GUI queue
+    try:
+        log_q.put(s)
+        return
+    except Exception:
+        pass
+    # fallback: write to debug.log in the script dir
+    try:
+        here = os.path.dirname(os.path.abspath(__file__))
+        with open(os.path.join(here, "debug.log"), "a", encoding="utf-8") as f:
+            f.write(s)
+    except Exception:
+        # last-resort: ignore
+        pass
+
 stop_reader = threading.Event()
 
-# ==== 유틸 ====
+# ==== mitmdump 파일 경로 찾는 함수 ====
 def find_mitmdump():
     path = shutil.which("mitmdump")
     if path:
@@ -40,10 +66,33 @@ def find_mitmdump():
                     p = os.path.join(root, f)
                     if os.path.isfile(p) and os.access(p, os.X_OK):
                         return p
+                    
+    candidates = [
+        "/opt/homebrew/bin/mitmdump"
+    ]
+
+    for p in candidates:
+        if os.path.isfile(p) and os.access(p, os.X_OK):
+            return p
+        
+    common_brew_paths = ["/opt/homebrew/bin", "/usr/local/bin"]
+    cur_path = os.environ.get("PATH", "")
+    for bp in common_brew_paths:
+        if bp not in cur_path:
+            try:
+                os.environ["PATH"] = bp + os.pathsep + cur_path
+                path = shutil.which("mitmdump")
+                if path:
+                    return path
+            except Exception:
+                pass
+            
     return None
 
+# ==== mitmdump 실행 함수 ====
 def build_command(port, script_path):
     mitmdump_path = find_mitmdump()
+    append_log(f"mitmdump_path: {mitmdump_path}\n")
     if mitmdump_path:
         return [
             mitmdump_path,
@@ -55,6 +104,7 @@ def build_command(port, script_path):
         ]
     return None
 
+# ==== IPv4 주소 찾는 함수 ====
 def get_primary_outbound_ip():
     """외부로 나가는 기본 경로(인터넷 향해)를 이용해 현재 장비의 대표 IPv4를 구함."""
     try:
@@ -67,6 +117,7 @@ def get_primary_outbound_ip():
     except Exception:
         return None
 
+# ==== 호스트에 바인딩된 모든 IPv4 주소를 수집 ====
 def get_all_local_ipv4s():
     """호스트에 바인딩된 모든 IPv4 주소(중복 제거)를 반환."""
     ips = set()
@@ -105,7 +156,7 @@ def start_mitm(port, append_log):
     if not cmd:
         append_log("[ERROR] mitmdump not found. Please install mitmproxy or include mitmdump.exe in the bundle.\n")
         return False
-
+    
     # Start subprocess with pipes; platform-specific flags to make termination easier
     try:
         if platform.system() == "Windows":
@@ -127,7 +178,7 @@ def start_mitm(port, append_log):
                 preexec_fn=os.setsid
             )
     except Exception as e:
-        append_log(f"[ERROR] Failed to start DataInspector: {e}\n")
+        append_log(f"[ERROR] Failed to start DataInspector (Popen): {e}\n")
         proc = None
         return False
 
@@ -162,6 +213,7 @@ def _reader_thread(process, append_log, stop_event):
     finally:
         append_log("[*] reader thread exiting\n")
 
+# ==== 종료 함수 ====
 def stop_mitm(append_log, timeout=3.0):
     """안전하게 종료 시도: terminate -> wait(timeout) -> kill"""
     global proc, stop_reader

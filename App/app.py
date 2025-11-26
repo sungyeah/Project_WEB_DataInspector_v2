@@ -1,5 +1,5 @@
-from flask import Flask, request, render_template
 from flask_socketio import SocketIO, join_room, emit
+from flask import Flask, request, render_template
 
 app = Flask(__name__)
 socketio = SocketIO(app, cors_allowed_origins="*")
@@ -29,4 +29,4 @@ def handle_join(data):
         emit("joined", {"room": token})
 
 if __name__ == "__main__":
-    socketio.run(app, debug=True, host="0.0.0.0", port=5002)
+    socketio.run(app, debug=True, host="0.0.0.0", port=7500)
